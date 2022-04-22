@@ -69,10 +69,10 @@ app.get("/todos/", async (request, response) => {
   let getTodoQuery = "";
 
   const { search_q = "", priority, status, category, dueDate } = request.query;
-  try {
-    switch (true) {
-      case priorityAndStatus(request.query):
-        getTodoQuery = `
+
+  switch (true) {
+    case priorityAndStatus(request.query):
+      getTodoQuery = `
             SELECT 
               id, todo, priority, category, status, due_date as dueDate
             FROM 
@@ -81,10 +81,10 @@ app.get("/todos/", async (request, response) => {
                 todo LIKE '%${search_q}'
                 AND status = '${status}'
                 AND priority = '${priority}';`;
-        break;
+      break;
 
-      case categoryAndStatus(request.query):
-        getTodoQuery = `
+    case categoryAndStatus(request.query):
+      getTodoQuery = `
             SELECT 
               id, todo, priority, category, status, due_date as dueDate 
             FROM 
@@ -93,10 +93,10 @@ app.get("/todos/", async (request, response) => {
               todo LIKE '%${search_q}'
               AND category = '${category}'
               AND status = '${status}';`;
-        break;
+      break;
 
-      case categoryAndPriority(request.query):
-        getTodoQuery = `
+    case categoryAndPriority(request.query):
+      getTodoQuery = `
             SELECT 
               id, todo, priority, category, status, due_date as dueDate 
             FROM 
@@ -105,10 +105,15 @@ app.get("/todos/", async (request, response) => {
               todo LIKE '%${search_q}'
               AND category = '${category}'
               AND priority = '${priority}';`;
-        break;
+      break;
 
-      case priorityProperty(request.query):
-        try {
+    case priorityProperty(request.query):
+      try {
+        if (
+          request.query.priority === "HIGH" ||
+          request.query.priority === "MEDIUM" ||
+          request.query.priority === "LOW"
+        ) {
           getTodoQuery = `
         SELECT
           id, todo, priority, category, status, due_date as dueDate
@@ -117,14 +122,18 @@ app.get("/todos/", async (request, response) => {
         WHERE
           todo LIKE '%${search_q}%'
           AND priority = '${priority}';`;
-        } catch {
+        } else {
           response.status(400);
           response.send("Invalid Todo Priority");
         }
-        break;
+      } catch (err) {
+        console.log(err);
+      }
+      break;
 
-      case statusProperty(request.query):
-        try {
+    case statusProperty(request.query):
+      try {
+        if (request.query.status === ("TO DO" || "IN PROGRESS" || "DONE")) {
           getTodoQuery = `
         SELECT
           id, todo, priority, category, status, due_date as dueDate
@@ -133,14 +142,22 @@ app.get("/todos/", async (request, response) => {
         WHERE
           todo LIKE '%${search_q}%'
           AND status = '${status}';`;
-        } catch {
+        } else {
           response.status(400);
           response.send("Invalid Todo Status");
         }
-        break;
+      } catch (err) {
+        console.log(err);
+      }
+      break;
 
-      case categoryProperty(request.query):
-        try {
+    case categoryProperty(request.query):
+      try {
+        if (
+          request.query.category === "WORK" ||
+          request.query.category === "HOME" ||
+          request.query.category === "LEARNING"
+        ) {
           getTodoQuery = `
         SELECT
           id, todo, priority, category, status, due_date as dueDate
@@ -149,15 +166,18 @@ app.get("/todos/", async (request, response) => {
         WHERE
           todo LIKE '%${search_q}%'
           AND category = '${category}';`;
-        } catch {
+        } else {
           response.status(400);
           response.send("Invalid Todo Category");
         }
-        break;
+      } catch (err) {
+        console.log(err);
+      }
+      break;
 
-      case dueDateProperty(request.query):
-        try {
-          getTodoQuery = `
+    case dueDateProperty(request.query):
+      try {
+        getTodoQuery = `
         SELECT
           id, todo, priority, category, status, due_date as dueDate
         FROM
@@ -165,28 +185,24 @@ app.get("/todos/", async (request, response) => {
         WHERE
           todo LIKE '%${search_q}%'
           AND due_date = '${dueDate}';`;
-        } catch {
-          response.status(400);
-          response.send("Invalid Due Date");
-        }
-        break;
+      } catch {
+        response.status(400);
+        response.send("Invalid Due Date");
+      }
+      break;
 
-      default:
-        getTodoQuery = `
+    default:
+      getTodoQuery = `
       SELECT
         id, todo, priority, category, status, due_date as dueDate
       FROM
         todo 
       WHERE
         todo LIKE '%${search_q}%';`;
-    }
-
-    data = await db.all(getTodoQuery);
-    response.send(data);
-  } catch {
-    response.status(400);
-    response.send(`Invalid Todo ${request.query}`);
   }
+
+  data = await db.all(getTodoQuery);
+  response.send(data);
 });
 
 app.get("/todos/:todoId/", async (request, response) => {
@@ -204,8 +220,12 @@ app.get("/todos/:todoId/", async (request, response) => {
 });
 
 app.post("/todos/", async (request, response) => {
-  try {
-    const { id, todo, priority, category, status, dueDate } = request.body;
+  const { id, todo, priority, category, status, dueDate } = request.body;
+  if (
+    status === ("TO DO" || "IN PROGRESS" || "DONE") ||
+    priority === ("HIGH" || "MEDIUM" || "LOW") ||
+    category === ("WORK" || "HOME" || "LEARNING")
+  ) {
     const postTodoQuery = `
     INSERT INTO
         todo (id, todo, priority, category, status, due_date)
@@ -213,7 +233,7 @@ app.post("/todos/", async (request, response) => {
         (${id}, '${todo}', '${priority}', '${category}', '${status}', '${dueDate}');`;
     await db.run(postTodoQuery);
     response.send("Todo Successfully Added");
-  } catch {
+  } else {
     response.status(400);
     response.send("Adding Todo Failed");
   }
